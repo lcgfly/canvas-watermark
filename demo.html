@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        .content {
+            border: 1px solid #d9d9d9;
+        }
+
+        #source,
+        #target {
+            object-fit: contain;
+        }
+    </style>
+</head>
+
+<body>
+    选择文件：<input type="file" name="" id="loader" accept="image/*">
+    <div class="content">
+        <img src="" alt="源文件" id="source">
+        <canvas id="target"></canvas>
+    </div>
+</body>
+<script>
+    const DEFAULT_CONFIG = {
+        deg: -45,
+        text: '林英杰',
+        repeat: true,
+        fontSize: undefined,
+        fontColor: 'rgba(0,0,0,.6)',
+        fontFamily: 'sans-serif',
+        quality: 0.92,
+        fileName: undefined,
+        downLoad: false
+    }
+
+
+
+    /** @type {HTMLCanvasElement} */
+    const loader = document.getElementById('loader')
+    const source = document.getElementById('source')
+    const target = document.getElementById('target')
+
+    loader.addEventListener('change', handleFileChange)
+
+    function handleFileChange() {
+        let src = window.URL.createObjectURL(this.files[0])
+        console.log('initial size:  ' + this.files[0].size / 1024 + 'kB');
+        source.onload = () => {
+            watermark(src)
+
+        }
+        source.src = src
+    }
+
+    function watermark(src, callback, param = {}) {
+        // if (!callback) {
+        //     throw new Error('callback is required.')
+        // }
+        let config = Object.assign(DEFAULT_CONFIG, param)
+        let img = new Image()
+        img.onload = function () {
+            let naturalWidth = img.naturalWidth
+            let naturalHeight = img.naturalHeight
+
+            //let canvas = document.createElement('canvas')
+            target.width = naturalWidth
+            target.height = naturalHeight
+            let fontSize = config.fontSize || pixelToFontSize(img)
+            let text = config.text
+            const ctx = target.getContext("2d")
+
+            ctx.drawImage(img, 0, 0, naturalWidth, naturalHeight)
+
+            ctx.font = `${fontSize}px ${config.fontFamily}`;
+            ctx.fillStyle = config.fontColor
+            ctx.rotate(-45 * Math.PI / 180)
+            let xAxisPoints = Math.floor(naturalWidth / (fontSize))
+            let yAxisPoints = Math.floor(naturalHeight / (fontSize))
+            for (let i = -yAxisPoints; i < yAxisPoints; i++) {
+
+                for (let j = -xAxisPoints; j < xAxisPoints; j++) {
+                    let offset = i * -fontSize * text.length
+                    let xSpace = 3
+                    let ySpace = 4.5
+                    ctx.fillText(text, j * fontSize * text.length * xSpace + offset, i * fontSize * ySpace)
+                }
+            }
+            target.toBlob(blob => {
+                console.log('final size:  ' + blob.size / 1024 + 'kB');
+                let fileName = new Date().getTime() + '.jpeg'
+                downLoad(blob, config.fileName || fileName)
+                //callback(blob)
+            }, 'image/jpeg', config.quality)
+        }
+        img.onerror = function () {
+            throw new Error('can not load image , please check resource')
+        }
+        img.src = src
+
+
+    }
+
+    function downLoad(blob, fileName) {
+        let link = document.createElement('a')
+        let downloadUrl = window.URL.createObjectURL(blob)
+        link.href = downloadUrl
+        link.download = fileName
+        document.body.appendChild(link)
+        link.click()
+        setTimeout(() => {
+            link.remove()
+            window.URL.revokeObjectURL(downloadUrl)
+        }, 0);
+    }
+
+    function pixelToFontSize(img) {
+        const { naturalWidth } = img
+        //base 1080 / 30 = 36   设计图1080宽，字体大小30
+        let fontSize = Math.floor(naturalWidth / 36)
+        return fontSize < 10 ? 10 : fontSize
+    }
+</script>
+
+</html>
